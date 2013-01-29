@@ -1,0 +1,14 @@
+
+the way to simulate loop keys(e.g. 123):
+ . make a list init with keys+reverse keys - e.g. 123321
+ . shift one then push it back - after one step 233211
+
+the way to encrypt
+ . make a list (a..za..z)
+ . the encrypted character's index is ord($plaintext) - ord ('a') + $key
+
+ the way to decrypt
+ . make a list (z..az..a)
+ . the decrypted character's index is ord('z') - ord( $cryptedtext) + $key
+
+ 
