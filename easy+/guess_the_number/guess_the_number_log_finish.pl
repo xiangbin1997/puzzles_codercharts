@@ -32,17 +32,14 @@ my $g_a;
 my $g_b;
 my $g_lastanswer;
 
-sub init
+sub init_listen
 {
    open($g_LISTEN_FD, "<", $g_LISTEN_F) or die "open file failed!";
-   open($g_SPEAK_FD, ">>", $g_SPEAK_F) or die "open file failed!";
    $g_LISTEN_FD->autoflush(1);
-   $g_SPEAK_FD->autoflush(1);
    $g_select_listen = IO::Select->new($g_LISTEN_FD);
-   $g_select_speak = IO::Select->new($g_SPEAK_FD);
 }
 
-sub finish
+sub finish_listen
 {
     $g_select_listen->remove($g_LISTEN_FD);
     undef $g_select_listen;
@@ -50,8 +47,25 @@ sub finish
     close $g_LISTEN_FD;
 }
 
+sub init_speak
+{
+   open($g_SPEAK_FD, ">>", $g_SPEAK_F) or die "open file failed!";
+   $g_SPEAK_FD->autoflush(1);
+   $g_select_speak = IO::Select->new($g_SPEAK_FD);
+}
+
+sub finish_speak
+{
+    $g_select_speak->remove($g_SPEAK_FD);
+    undef $g_select_speak;
+
+    close $g_SPEAK_FD;
+}
+
 sub lis
 {
+    init_listen;
+
     # TODO: handle block
     sleep 0.1;
     my ($ready) = $g_select_listen->can_read;
@@ -100,15 +114,18 @@ sub lis
     }
     print "received: " . Dumper(\%resp);
 
+    finish_listen;
     return \%resp;
 }
 
 sub speak
 {
     my $guess = shift;
+    init_speak;
     my($ready) = $g_select_speak->can_write;
 
     print "send: ($guess)\n";
+    finish_speak;
     print $ready "$guess\n";
 }
 
@@ -203,5 +220,4 @@ sub main
 }
 
 $| = 1;
-init;
 main;
