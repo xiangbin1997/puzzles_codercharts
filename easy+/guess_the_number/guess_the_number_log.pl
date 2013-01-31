@@ -3,6 +3,9 @@
 use strict;
 use IO::Handle;
 use IO::Select;
+use Data::Dumper;
+use POSIX qw(ceil floor);
+use Time::HiRes;
 
 my $g_LISTEN_F = shift;
 my $g_SPEAK_F = shift;
@@ -35,15 +38,19 @@ sub init
    $g_LISTEN_FD->autoflush(1);
    $g_SPEAK_FD->autoflush(1);
    $g_select = IO::Select->new($g_LISTEN_FD);
+   $| = 1;
 }
 
 sub lis
 {
     # TODO: handle block
+    sleep 0.1;
     my ($ready) = $g_select->can_read;
     my $msg = <$ready>;
     my %resp = ();
-
+    
+    chomp $msg;
+    print "msg<$msg>\n";
     if ($msg =~ m/^n\s+(\d+)\s+(\d+)/)
     {
         $resp{'type'} = "START_GUESS";
@@ -82,14 +89,14 @@ sub lis
     {
         # TODO: bug catch
     }
-
+    print "received: " . Dumper(\%resp);
     return \%resp;
 }
 
 sub speak
 {
     my $guess = shift;
-
+    print "send: ($guess)\n";
     print $g_SPEAK_FD "$guess\n";
 }
 
@@ -104,9 +111,10 @@ sub guess
     my $clue = shift;
     my $answer;
 
+    print "guess: clue <$clue> last<$g_lastanswer> a<$g_a> b<$g_b>\n";
     if ( $clue eq "NOTHING")
     {
-        $answer = ($g_a + $g_b)/2;
+        $answer = floor (($g_a + $g_b)/2);
     }
     elsif($clue eq "LITTLE")
     {
@@ -118,7 +126,7 @@ sub guess
         else
         {
             $g_a = $g_lastanswer;
-            $answer = int ($g_a + $g_b)/2;
+            $answer = floor (($g_a + $g_b)/2);
         }
     }
     elsif($clue eq "GREAT")
@@ -131,7 +139,7 @@ sub guess
         else
         {
             $g_b = $g_lastanswer;
-            $answer = ($g_a + $g_b)/2;
+            $answer = floor (($g_a + $g_b)/2);
         }
     }
     elsif($clue eq "EQUAL")
@@ -184,4 +192,3 @@ sub main
 
 init;
 main;
-
