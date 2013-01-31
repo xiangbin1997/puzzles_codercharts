@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 #Enter your code here
+#http://perl.plover.com/FAQs/Buffering.html
 use strict;
 use IO::Handle;
 use IO::Select;
