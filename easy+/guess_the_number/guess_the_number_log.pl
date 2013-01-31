@@ -194,6 +194,10 @@ sub main
             {
                 speak($guess);
             }
+            else
+            {
+                sleep 0.3;
+            }
         }
         else
         {
