@@ -130,9 +130,8 @@ sub guess
     }
     elsif($clue eq "LITTLE")
     {
-        if($g_a eq $g_lastanswer)
+        if(( $g_a + 1 ) == $g_b)
         {
-            # means $b=$a+1
             $answer = $g_b;
         }
         else
@@ -143,9 +142,8 @@ sub guess
     }
     elsif($clue eq "GREAT")
     {
-        if($g_b eq $g_lastanswer)
+        if($g_b == ($g_a + 1))
         {
-            # means $b=$a+1
             $answer = $g_a;
         }
         else
