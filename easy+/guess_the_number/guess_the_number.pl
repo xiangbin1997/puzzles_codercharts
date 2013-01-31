@@ -1,16 +1,20 @@
 #!/usr/bin/perl
 #Enter your code here
 use strict;
+use IO::Handle;
+use IO::Select;
 
 my $g_LISTEN_F = shift;
 my $g_SPEAK_F = shift;
 my $g_LISTEN_FD;
 my $g_SPEAK_FD;
+my $g_select;
 
 my @g_RESP_TYPE = qw(
     START_GUESS
     END_GAME
     GUESS_RESULT
+    NOTHING
 );
 
 my @g_GUESS_CLUE = qw(
@@ -28,6 +32,66 @@ sub init
 {
    open($g_LISTEN_FD, "<", $g_LISTEN_F) or die "open file failed!";
    open($g_SPEAK_FD, ">>", $g_SPEAK_F) or die "open file failed!";
+   $g_LISTEN_FD->autoflush(1);
+   $g_SPEAK_FD->autoflush(1);
+   $g_select = new IO::Select();
+   $g_select->add($g_LISTEN_FD);
+}
+
+sub lis
+{
+    # TODO: handle block
+    my ($ready) = $g_select->can_read();
+    my $msg = <$ready>;
+    my %resp = ();
+
+    if ($msg =~ m/^n\s+(\d)\s+(\d)/)
+    {
+        $resp{'type'} = "START_GUESS";
+        $resp{'data'} = "$1:$2";
+    }
+    elsif($msg =~ /^e/)
+    {
+        $resp{'type'} = "END_GAME";
+    }
+    elsif($msg =~ /^(<|>|=)/)
+    {
+        $resp{'type'} = "GUESS_RESULT";
+        my $clue;
+
+        if($1 eq "<")
+        {
+            $clue = "LITTLE";
+        }
+        elsif($1 eq ">")
+        {
+            $clue = "GREAT";
+        }
+        elsif($1 eq "=")
+        {
+            $clue = "EQUAL";
+        }
+        else
+        {
+            # TODO: bug catch
+            $clue = "UNKNOWN";
+        }
+
+        $resp{'data'} = $clue;
+    }
+    else
+    {
+        # TODO: bug catch
+    }
+
+    return \%resp;
+}
+
+sub speak
+{
+    my $guess = shift;
+
+    print $g_SPEAK_FD $guess;
 }
 
 sub guessinit
@@ -54,10 +118,9 @@ sub guess
         }
         else
         {
+            $g_a = $g_lastanswer;
             $answer = ($g_a + $g_b)/2;
         }
-
-        $g_a = $g_lastanswer;
     }
     elsif($clue eq "GREAT")
     {
@@ -68,10 +131,9 @@ sub guess
         }
         else
         {
+            $g_b = $g_lastanswer;
             $answer = ($g_a + $g_b)/2;
         }
-
-        $g_b = $g_lastanswer;
     }
     elsif($clue eq "EQUAL")
     {
@@ -88,23 +150,11 @@ sub guess
     return $answer;
 }
 
-sub lis
-{
-
-}
-
-sub speak
-{
-
-}
-
 sub main
 {
     while(1)
     {
         my $resp = lis();
-        my $a;
-        my $b;
 
         if ( $resp->type eq "START_GUESS" )
         {
