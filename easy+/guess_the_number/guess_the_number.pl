@@ -1,14 +1,19 @@
 #!/usr/bin/perl
 #Enter your code here
+#http://perl.plover.com/FAQs/Buffering.html
 use strict;
 use IO::Handle;
 use IO::Select;
+use Data::Dumper;
+use POSIX qw(ceil floor);
+use Time::HiRes;
 
 my $g_LISTEN_F = shift;
 my $g_SPEAK_F = shift;
 my $g_LISTEN_FD;
 my $g_SPEAK_FD;
-my $g_select;
+my $g_select_listen;
+my $g_select_speak;
 
 my @g_RESP_TYPE = qw(
     START_GUESS
@@ -34,16 +39,41 @@ sub init
    open($g_SPEAK_FD, ">>", $g_SPEAK_F) or die "open file failed!";
    $g_LISTEN_FD->autoflush(1);
    $g_SPEAK_FD->autoflush(1);
-   $g_select = IO::Select->new($g_LISTEN_FD);
+   $g_select_listen = IO::Select->new($g_LISTEN_FD);
+   $g_select_speak = IO::Select->new($g_SPEAK_FD);
+}
+
+sub finish
+{
+    $g_select_listen->remove($g_LISTEN_FD);
+    undef $g_select_listen;
+
+    close $g_LISTEN_FD;
 }
 
 sub lis
 {
     # TODO: handle block
-    my ($ready) = $g_select->can_read;
-    my $msg = <$ready>;
-    my %resp = ();
+    sleep 0.1;
+    my ($ready) = $g_select_listen->can_read;
+    my $msg;
+    while(1)
+    {
+        my $in = "";
+        my $length = sysread $ready,$in,1;
+        $msg .= $in;
+        print "read a char ($in)\n";
+        if ("$in" eq "\n")
+        {
+            print "read a nextline...";
+            last;
+        }
+    }
 
+    my %resp = ();
+    
+    chomp $msg;
+    print "msg<$msg>\n";
     if ($msg =~ m/^n\s+(\d+)\s+(\d+)/)
     {
         $resp{'type'} = "START_GUESS";
@@ -82,6 +112,7 @@ sub lis
     {
         # TODO: bug catch
     }
+    print "received: " . Dumper(\%resp);
 
     return \%resp;
 }
@@ -89,8 +120,12 @@ sub lis
 sub speak
 {
     my $guess = shift;
+    
+    
+    my($ready) = $g_select_speak->can_write;
 
-    print $g_SPEAK_FD "$guess\n";
+    print "send: ($guess)\n";
+    syswrite $ready,"$guess\n";
 }
 
 sub guessinit
@@ -104,34 +139,33 @@ sub guess
     my $clue = shift;
     my $answer;
 
+    print "guess: clue <$clue> last<$g_lastanswer> a<$g_a> b<$g_b>\n";
     if ( $clue eq "NOTHING")
     {
-        $answer = ($g_a + $g_b)/2;
+        $answer = floor (($g_a + $g_b)/2);
     }
     elsif($clue eq "LITTLE")
     {
-        if($g_a eq $g_lastanswer)
+        if(( $g_a + 1 ) == $g_b)
         {
-            # means $b=$a+1
             $answer = $g_b;
         }
         else
         {
             $g_a = $g_lastanswer;
-            $answer = int ($g_a + $g_b)/2;
+            $answer = floor (($g_a + $g_b)/2);
         }
     }
     elsif($clue eq "GREAT")
     {
-        if($g_b eq $g_lastanswer)
+        if($g_b == ($g_a + 1))
         {
-            # means $b=$a+1
             $answer = $g_a;
         }
         else
         {
             $g_b = $g_lastanswer;
-            $answer = ($g_a + $g_b)/2;
+            $answer = floor (($g_a + $g_b)/2);
         }
     }
     elsif($clue eq "EQUAL")
@@ -169,10 +203,14 @@ sub main
         elsif($resp->{'type'} eq "GUESS_RESULT")
         {
             my $clue = $resp->{'data'};
+            my $guess = guess($clue);
             if ($clue ne "EQUAL")
             {
-                my $guess = guess($clue);
                 speak($guess);
+            }
+            else
+            {
+                sleep 0.3;
             }
         }
         else
@@ -182,6 +220,6 @@ sub main
     }
 }
 
+$| = 1;
 init;
 main;
-

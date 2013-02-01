@@ -56,7 +56,20 @@ sub lis
     # TODO: handle block
     sleep 0.1;
     my ($ready) = $g_select_listen->can_read;
-    my $msg = <$ready>;
+    my $msg;
+    while(1)
+    {
+        my $in = "";
+        my $length = sysread $ready,$in,1;
+        $msg .= $in;
+        print "read a char ($in)\n";
+        if ("$in" eq "\n")
+        {
+            print "read a nextline...";
+            last;
+        }
+    }
+
     my %resp = ();
     
     chomp $msg;
@@ -107,10 +120,12 @@ sub lis
 sub speak
 {
     my $guess = shift;
+    
+    
     my($ready) = $g_select_speak->can_write;
 
     print "send: ($guess)\n";
-    print $ready "$guess\n";
+    syswrite $ready,"$guess\n";
 }
 
 sub guessinit
