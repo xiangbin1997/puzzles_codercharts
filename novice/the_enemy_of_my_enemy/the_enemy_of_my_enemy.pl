@@ -6,8 +6,11 @@ open($F,"<",shift);
 while(<$F>){chomp;push @c,$_}
 ($n,$p)=split / /,$c[0];
 map{
-@e=split;
-map{a($e[$_],$e[1-$_])}(0..1)}@c[1..$p];
+ @e=split;
+ map{
+  a($e[$_],$e[1-$_])
+ }(0..1)
+}@c[1..$p];
 map{
  $m=$c[$p+1+$_];
  $el=$h{$m};
